@@ -3,16 +3,25 @@ import 'package:provider/provider.dart';
 import 'core/themes/app_themes.dart';
 import 'providers/theme_provider.dart';
 import 'presentation/screens/splash_screen.dart';
+import 'providers/finance_provider.dart';
+import 'data/local/hive_helper.dart';
 
-void main(){
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await HiveHelper.initHive();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
+    // MultiProvider lagaya taqe aik se zyada providers register ho sakein
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => FinanceProvider()..loadTransactions()),
+        // Yeh double dot (..) operator app khulte hi automatic database load kar deta hai
+      ],
       child: const FinTrackApp(),
     ),
   );
-  }
+}
 
 class FinTrackApp extends StatelessWidget{
   const FinTrackApp({super.key});
@@ -30,10 +39,6 @@ class FinTrackApp extends StatelessWidget{
       home: const SplashScreen(),
     );
   }
-
-
-
-
 }
 
 
