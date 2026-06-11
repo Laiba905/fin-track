@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import '../data/models/transaction_model.dart';
+import '../data/local/hive_helper.dart'; // Make sure path is correct
 
 class FinanceProvider extends ChangeNotifier {
-  final List<Transaction> _transactions = []; // Aap ka main storage list (Hive local sync)
+  // Main storage list jo UI aur Hive box ke darmiyan sync rahegi
+  List<Transaction> _transactions = [];
 
   List<Transaction> get transactions {
-    // Newest transactions top par show karne k liye sorted array
+    // Newest transactions hamesha top par rakhne ke liye sorting hook
     _transactions.sort((a, b) => b.date.compareTo(a.date));
     return _transactions;
   }
 
   // --- 📅 TIME PERIOD FILTER GETTERS ---
-
   List<Transaction> get weeklyTransactions {
     final now = DateTime.now();
     final lastWeek = now.subtract(const Duration(days: 7));
@@ -29,7 +30,6 @@ class FinanceProvider extends ChangeNotifier {
   }
 
   // --- 💰 GLOBAL BALANCES CONTROLLERS ---
-
   double get totalBalance {
     double balance = 0;
     for (var tx in _transactions) {
@@ -50,26 +50,54 @@ class FinanceProvider extends ChangeNotifier {
     return _transactions.where((tx) => !tx.isIncome).fold(0, (sum, tx) => sum + tx.amount);
   }
 
-  // --- 🛠️ MUTATION DATA OPERATIONS ---
+  // --- 🛠️ MUTATION DATA OPERATIONS (FIXED) ---
 
-  Future<void> addTransaction(Transaction tx) async {
-    // If transaction with same ID exists, update it, otherwise add new
-    final index = _transactions.indexWhere((t) => t.id == tx.id);
-    if (index != -1) {
-      _transactions[index] = tx;
-    } else {
-      _transactions.add(tx);
-    }
-    notifyListeners();
-  }
-
-  void deleteTransaction(String id) {
-    _transactions.removeWhere((tx) => tx.id == id);
-    notifyListeners();
-  }
-
-  // Mocking loadTransactions for now as requested by UI logic
+  // 1. App start hote hi data database se memory list mein khichne ke liye
   Future<void> loadTransactions() async {
-    notifyListeners();
+    try {
+      final box = HiveHelper.getTransactionBox();
+      // Hive se saara data utha kar local array list ko pass kar diya
+      _transactions = box.values.toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error loading from Hive: $e");
+    }
+  }
+
+  // 2. Transaction ko permanent persistent memory mein save karne ke liye
+  Future<void> addTransaction(Transaction tx) async {
+    try {
+      final box = HiveHelper.getTransactionBox();
+
+      // FIX CRITICAL: Database mein permanent file layer par save kiya
+      await box.put(tx.id, tx);
+
+      // Local list UI management state update sync context
+      final index = _transactions.indexWhere((t) => t.id == tx.id);
+      if (index != -1) {
+        _transactions[index] = tx; // Edit optimization override
+      } else {
+        _transactions.add(tx); // Fresh entry insertion
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error saving to Hive: $e");
+    }
+  }
+
+  // 3. Transaction ko database se hatane ke liye
+  Future<void> deleteTransaction(String id) async {
+    try {
+      final box = HiveHelper.getTransactionBox();
+
+      // FIX CRITICAL: Local disk block storage se entry remove ki
+      await box.delete(id);
+
+      _transactions.removeWhere((tx) => tx.id == id);
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error deleting from Hive: $e");
+    }
   }
 }
