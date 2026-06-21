@@ -57,26 +57,13 @@ class _MainNavigationHolderState extends State<MainNavigationHolder> {
         child: SizedBox(
           height: 60,
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              // Left Side Items (Home & Charts)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  _buildNavButton(Icons.home_filled, 'Home', 0),
-                  _buildNavButton(Icons.bar_chart_rounded, 'Charts', 1),
-                ],
-              ),
-              const SizedBox(width: 40), // Notch cavity absolute spacing threshold
-
-              // Right Side Items (History & Profile)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  _buildNavButton(Icons.history_toggle_off_rounded, 'History', 3),
-                  _buildNavButton(Icons.person_rounded, 'Profile', 4), // Solid icon for selection alignment
-                ],
-              ),
+              _buildNavButton(Icons.home_filled, 'Home', 0),
+              _buildNavButton(Icons.bar_chart_rounded, 'Charts', 1),
+              const SizedBox(width: 40), // Notch cavity space
+              _buildNavButton(Icons.history_toggle_off_rounded, 'History', 3),
+              _buildNavButton(Icons.person_rounded, 'Profile', 4),
             ],
           ),
         ),
@@ -102,36 +89,36 @@ class _MainNavigationHolderState extends State<MainNavigationHolder> {
   // Mini Nav Button Component Template
   Widget _buildNavButton(IconData icon, String label, int index) {
     final isSelected = _currentIndex == index;
-
-    // Theme aware color profiles sync with our secure personal finance green tint accent
     final activeColor = const Color(0xFF10B981);
     final inactiveColor = Colors.grey.shade400;
 
-    return MaterialButton(
-      minWidth: MediaQuery.of(context).size.width * 0.20,
-      onPressed: () {
+    return InkWell(
+      onTap: () {
         setState(() {
           _currentIndex = index;
         });
       },
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            color: isSelected ? activeColor : inactiveColor,
-            size: 24,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
               color: isSelected ? activeColor : inactiveColor,
+              size: 22,
             ),
-          ),
-        ],
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? activeColor : inactiveColor,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

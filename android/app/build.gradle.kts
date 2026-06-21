@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.fin_track"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36 // Required by google_sign_in and shared_preferences
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -20,12 +20,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.fin_track"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = flutter.minSdkVersion // Android 5.0 (Covers 99%+ of all Android devices)
+        targetSdk = 36 // Updated to match compileSdk for compatibility
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -41,4 +38,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Google Sign-In support configuration
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
 }

@@ -100,4 +100,16 @@ class FinanceProvider extends ChangeNotifier {
       debugPrint("Error deleting from Hive: $e");
     }
   }
+
+  // 4. Poore local database logs ko wipe karne k liye (Settings Reset)
+  Future<void> clearAllTransactions() async {
+    try {
+      final box = HiveHelper.getTransactionBox();
+      await box.clear();
+      _transactions.clear();
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error clearing database: $e");
+    }
+  }
 }

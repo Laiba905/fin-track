@@ -5,6 +5,7 @@ import 'providers/theme_provider.dart';
 import 'presentation/screens/splash_screen.dart';
 import 'providers/finance_provider.dart';
 import 'data/local/hive_helper.dart';
+import 'presentation/screens/main_navigation_holder.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +37,7 @@ class FinTrackApp extends StatelessWidget{
       theme: AppThemes.lightTheme,
       darkTheme: AppThemes.darkTheme,
       themeMode: themeProvider.themeMode,
-      home: const SplashScreen(),
+      home: const MainNavigationHolder(),
     );
   }
 }

@@ -17,6 +17,7 @@ class DashboardScreen extends StatelessWidget {
     final horizontalPadding = ResponsiveHelper.getHorizontalPadding(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -27,26 +28,19 @@ class DashboardScreen extends StatelessWidget {
         title: Row(
           children: [
             Image.asset(
-              'assets/images/logo.png', // Aap ka asset directory image path
-              height: 188, // Dashboard header ke hisaab se height ko exact optimize kiya hai
+              "assets/images/logo.png",
+              height: 32,
               fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                // Fallback handle agar image missing ho to default text aur icon aa jaye
-                return Row(
-                  children: [
-                    const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF10B981)),
-                    const SizedBox(width: 8),
-                    Text(
-                      'FinTrack',
-                      style: TextStyle(
-                        color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                      ),
-                    ),
-                  ],
-                );
-              },
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'FinTrack',
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+                letterSpacing: -0.5,
+              ),
             ),
           ],
         ),
@@ -153,6 +147,8 @@ class DashboardScreen extends StatelessWidget {
           Text(
             'Rs. ${provider.totalBalance.toStringAsFixed(2)}',
             style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 12),
           Container(

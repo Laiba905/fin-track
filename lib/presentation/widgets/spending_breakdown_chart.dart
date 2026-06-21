@@ -128,12 +128,11 @@ class SpendingBreakdownChart extends StatelessWidget {
                       ),
                     ),
 
-                    // Percentage breakdown label
                     Text(
                       '${percentage.toStringAsFixed(0)}%',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
 
                     Text(
                       'Rs.${amount.toStringAsFixed(0)}',

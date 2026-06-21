@@ -41,18 +41,36 @@ class _SplashScreenState extends State<SplashScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
-              Image.asset(
-                    'assets/images/logo.png',
-                    width: isWeb ? 160 : screenSize.width * 0.55,
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    "assets/images/logo.png",
+                    width: isWeb ? 160 : (screenSize.width * 0.35),
                     fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Icon(
-                        Icons.account_balance_wallet_rounded,
-                        size: 100,
-                        color: Theme.of(context).primaryColor,
-                      );
-                    },
-                  )
+                  ),
+                  // const SizedBox(height: 14),
+                  // Text(
+                  //   'FinTrack',
+                  //   style: TextStyle(
+                  //     fontSize: isWeb ? 40 : (screenSize.width * 0.08).clamp(28, 36),
+                  //     fontWeight: FontWeight.bold,
+                  //     color: Theme.of(context).primaryColor,
+                  //     letterSpacing: -1,
+                  //   ),
+                  // ),
+                  // const SizedBox(height: 10),
+                  // Text(
+                  //   'Smart way to manage your expenses',
+                  //   textAlign: TextAlign.center,
+                  //   style: TextStyle(
+                  //     fontSize: isWeb ? 16 : (screenSize.width * 0.04).clamp(14, 18),
+                  //     color: Colors.grey.shade600,
+                  //     fontWeight: FontWeight.w500, fontStyle: FontStyle.italic,
+                  //   ),
+                  // ),
+                ],
+              )
                   .animate()
                   .fade(duration: 800.ms)
                   .scale(

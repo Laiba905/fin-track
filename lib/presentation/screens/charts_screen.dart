@@ -134,7 +134,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                 child: Text(
                   periods[index],
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                     color: isSelected ? (isDark ? Colors.white : Colors.black) : Colors.grey.shade500,
                   ),
@@ -151,9 +151,9 @@ class _ChartsScreenState extends State<ChartsScreen> {
     return Row(
       children: [
         _buildStatBox('Income', income, const Color(0xFF10B981), isDark),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         _buildStatBox('Expenses', expense, const Color(0xFFEF4444), isDark),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         _buildStatBox('Savings', savings, const Color(0xFF3B82F6), isDark),
       ],
     );
@@ -166,20 +166,25 @@ class _ChartsScreenState extends State<ChartsScreen> {
 
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade100),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
-            const SizedBox(height: 6),
             Text(
-              '$sign\Rs.$displayAmount',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: accentColor),
+              label,
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$sign Rs.$displayAmount',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: accentColor),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -203,18 +208,15 @@ class _ChartsScreenState extends State<ChartsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          const Text('Cash Flow Wave', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          // Chart Legends Matrix Indicator Labels
+          Wrap(
+            spacing: 12,
+            runSpacing: 4,
             children: [
-              const Text('Cash Flow Wave', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              // Chart Legends Matrix Indicator Labels
-              Row(
-                children: [
-                  _buildLegendIndicator(const Color(0xFF10B981), 'Income'),
-                  const SizedBox(width: 12),
-                  _buildLegendIndicator(const Color(0xFFEF4444), 'Expense'),
-                ],
-              )
+              _buildLegendIndicator(const Color(0xFF10B981), 'Income'),
+              _buildLegendIndicator(const Color(0xFFEF4444), 'Expense'),
             ],
           ),
           const SizedBox(height: 24),

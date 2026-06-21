@@ -4,7 +4,7 @@ import 'package:hive/hive.dart';
 part 'transaction_model.g.dart';
 
 @HiveType(typeId: 0)
-class Transaction extends HiveObject{
+class Transaction extends HiveObject {
   @HiveField(0)
   final String id;
 
@@ -33,23 +33,27 @@ class Transaction extends HiveObject{
     required this.isIncome,
   });
 
+  // 1. Transaction Object ko Map (JSON ready format) mein convert karne k liye
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'amount': amount,
+      'category': category,
+      'date': date.toIso8601String(), // DateTime ko string banana zaroori hai JSON k liye
+      'note': note,
+      'isIncome': isIncome,
+    };
+  }
+
+  // 2. Backup se aane wale Map ko wapas Transaction Object banane k liye
+  factory Transaction.fromMap(Map<String, dynamic> map) {
+    return Transaction(
+      id: map['id'] ?? '',
+      amount: (map['amount'] as num).toDouble(), // Type casting safe rakhne k liye
+      category: map['category'] ?? '',
+      date: DateTime.parse(map['date']),
+      note: map['note'] ?? '',
+      isIncome: map['isIncome'] ?? false,
+    );
+  }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
