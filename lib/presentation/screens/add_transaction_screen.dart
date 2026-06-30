@@ -57,11 +57,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   // --- 📅 FIXED DARK MODE DATE PICKER ---
   Future<void> _pickDate() async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final DateTime now = DateTime.now();
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
+      initialDate: _selectedDate.isAfter(now) ? now : _selectedDate,
       firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
+      lastDate: now, // Restricted to current date
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -79,6 +80,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   // --- ⏰ FIXED DARK MODE TIME PICKER ---
   Future<void> _pickTime() async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final TimeOfDay nowTime = TimeOfDay.now();
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime,
@@ -93,7 +95,22 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         );
       },
     );
-    if (picked != null) setState(() => _selectedTime = picked);
+
+    if (picked != null) {
+      // Check if selected date is today, then restrict future time
+      final DateTime now = DateTime.now();
+      if (_selectedDate.year == now.year && _selectedDate.month == now.month && _selectedDate.day == now.day) {
+        if (picked.hour > nowTime.hour || (picked.hour == nowTime.hour && picked.minute > nowTime.minute)) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Cannot select a future time for today.')),
+            );
+          }
+          return;
+        }
+      }
+      setState(() => _selectedTime = picked);
+    }
   }
 
   void _showAddCategoryDialog() {

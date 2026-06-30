@@ -247,6 +247,9 @@ class DashboardScreen extends StatelessWidget {
           onDismissed: (direction) {
             _performDeleteWithUndo(context, provider, tx);
           },
+          confirmDismiss: (direction) async {
+            return await _showDeleteConfirmationDialog(context, tx.category);
+          },
           child: Container(
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
@@ -275,7 +278,7 @@ class DashboardScreen extends StatelessWidget {
                         children: [
                           Text(tx.category, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
                           const SizedBox(height: 4),
-                          Text(tx.note.isEmpty ? 'No description' : tx.note, style: TextStyle(color: Colors.grey.shade500, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text(tx.note.isEmpty ? 'No description' : tx.note, style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
                         ],
                       ),
                     ),
@@ -320,7 +323,7 @@ class DashboardScreen extends StatelessWidget {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${transaction.category} deleted'),
+        content: Text('${transaction.category} deleted', style: TextStyle(color: Colors.red)),
         duration: const Duration(seconds: 4),
         action: SnackBarAction(
           label: 'UNDO',
@@ -338,6 +341,51 @@ class DashboardScreen extends StatelessWidget {
       context,
       MaterialPageRoute(
         builder: (context) => AddTransactionScreen(existingTransaction: transaction),
+      ),
+    );
+  }
+
+  Future<bool?> _showDeleteConfirmationDialog(BuildContext context, String category) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        title: Text(
+          'Delete Transaction?',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to delete the "$category" transaction?',
+          style: TextStyle(
+            fontSize: 14,
+            color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w600),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
       ),
     );
   }

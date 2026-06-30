@@ -118,11 +118,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   flex: 4,
                   child: InkWell(
                     onTap: () async {
+                      final DateTime now = DateTime.now();
                       final DateTime? picked = await showDatePicker(
                         context: context,
-                        initialDate: _selectedDate ?? DateTime.now(),
+                        initialDate: _selectedDate ?? now,
                         firstDate: DateTime(2020),
-                        lastDate: DateTime(2101),
+                        lastDate: now, // Restricted to current date
                         builder: (context, child) {
                           return Theme(
                             data: isDark ? ThemeData.dark() : ThemeData.light(),
@@ -191,55 +192,86 @@ class _HistoryScreenState extends State<HistoryScreen> {
               itemCount: filteredTransactions.length,
               itemBuilder: (context, index) {
                 final tx = filteredTransactions[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(18),
+                return Dismissible(
+                  key: Key(tx.id),
+                  direction: DismissDirection.horizontal,
+                  background: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(color: Colors.redAccent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
+                    alignment: Alignment.centerLeft,
+                    child: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent, size: 26),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundColor: tx.isIncome
-                                ? const Color(0xFF10B981).withValues(alpha: 0.1)
-                                : const Color(0xFFEF4444).withValues(alpha: 0.1),
-                            child: Icon(
-                              tx.isIncome ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-                              color: tx.isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                              size: 18,
-                            ),
+                  secondaryBackground: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(color: Colors.redAccent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
+                    alignment: Alignment.centerRight,
+                    child: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent, size: 26),
+                  ),
+                  onDismissed: (direction) {
+                    _performDeleteWithUndo(context, financeProvider, tx);
+                  },
+                  confirmDismiss: (direction) async {
+                    return await _showDeleteConfirmationDialog(context, tx.category);
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: tx.isIncome
+                              ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                              : const Color(0xFFEF4444).withValues(alpha: 0.1),
+                          child: Icon(
+                            tx.isIncome ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                            color: tx.isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                            size: 18,
                           ),
-                          const SizedBox(width: 14),
-                          Column(
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 tx.category,
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 DateFormat('EEE, dd MMM yyyy').format(tx.date),
                                 style: TextStyle(color: Colors.grey.shade500, fontSize: 12, fontWeight: FontWeight.w500),
                               ),
+                              if (tx.note.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  tx.note,
+                                  style: TextStyle(color: Colors.grey.shade400, fontSize: 11),
+                                ),
+                              ],
                             ],
                           ),
-                        ],
-                      ),
-                      Text(
-                        '${tx.isIncome ? "+" : "-"}\Rs.${tx.amount.toStringAsFixed(0)}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: tx.isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 12),
+                        Text(
+                          '${tx.isIncome ? "+" : "-"} Rs.${tx.amount.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: tx.isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -264,6 +296,69 @@ class _HistoryScreenState extends State<HistoryScreen> {
           Text(
             isFiltering ? 'No transactions match your filters.' : 'No transactions recorded yet.',
             style: TextStyle(color: Colors.grey.shade500, fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _performDeleteWithUndo(BuildContext context, FinanceProvider provider, var transaction) {
+    provider.deleteTransaction(transaction.id);
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${transaction.category} deleted', style: TextStyle(color: Colors.red)),
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: 'UNDO',
+          textColor: Colors.amber,
+          onPressed: () {
+            provider.addTransaction(transaction);
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<bool?> _showDeleteConfirmationDialog(BuildContext context, String category) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        title: Text(
+          'Delete Transaction?',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to delete the "$category" transaction?',
+          style: TextStyle(
+            fontSize: 14,
+            color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w600),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
           ),
         ],
       ),

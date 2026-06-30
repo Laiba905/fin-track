@@ -32,7 +32,11 @@ class SpendingBreakdownChart extends StatelessWidget {
     };
 
     Color getColor(String category) {
-      return categoryColors[category] ?? Colors.blueGrey;
+      if (categoryColors.containsKey(category)) {
+        return categoryColors[category]!;
+      }
+      // Generate a deterministic color for custom categories
+      return Color((category.hashCode * 0xFFFFFF).toInt()).withValues(alpha: 1.0);
     }
 
     List<PieChartSectionData> sections = categoryMap.entries.map((entry) {

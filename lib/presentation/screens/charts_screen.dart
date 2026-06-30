@@ -372,17 +372,27 @@ class _ChartsScreenState extends State<ChartsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: const Color(0xFF3B82F6).withValues(alpha: 0.1),
-                        child: const Icon(Icons.label_important_outline_rounded, color: Color(0xFF3B82F6), size: 16),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(category.key, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                    ],
+                  Expanded(
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                          child: const Icon(Icons.label_important_outline_rounded, color: Color(0xFF3B82F6), size: 16),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            category.key,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [

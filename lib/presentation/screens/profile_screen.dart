@@ -17,6 +17,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isBackupEnabled = false; // Cloud backup switch status
   bool _isBackupLoading = false; // Loading indicator toggle handler
+  String _lastSyncedText = "Never"; // Last sync timestamp text
 
   @override
   void initState() {
@@ -30,40 +31,99 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final prefs = await SharedPreferences.getInstance();
       setState(() {
         _isBackupEnabled = prefs.getBool('isCloudBackupEnabled') ?? false;
+        _lastSyncedText = prefs.getString('lastSyncedAt') ?? "Never";
       });
+
+      // Restore session background mein (Bina pop-up ke)
+      if (_isBackupEnabled) {
+        await GoogleDriveService.restoreSession();
+      }
     } catch (e) {
       debugPrint("Preferences load error: $e");
     }
   }
 
+  // Manual Backup logic for one-tap sync
+  Future<void> _manualSync(FinanceProvider financeProvider) async {
+    setState(() => _isBackupLoading = true);
+    try {
+      final account = await GoogleDriveService.signIn();
+      if (account != null) {
+        String localDataJson = await HiveHelper.getDatabaseAsJsonString();
+        bool success = await GoogleDriveService.backupData(localDataJson);
+        if (success) {
+          final now = DateTime.now();
+          final timeStr = "${now.day}/${now.month} ${now.hour}:${now.minute.toString().padLeft(2, '0')}";
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('lastSyncedAt', timeStr);
+
+          setState(() => _lastSyncedText = timeStr);
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Backup successful!'), backgroundColor: Color(0xFF10B981)),
+            );
+          }
+        }
+      }
+    } finally {
+      setState(() => _isBackupLoading = false);
+    }
+  }
+
   /// --- 🔄 RESTORE WORKFLOW CONFIRMATION DIALOG INTERFACE ---
   void _triggerRestoreSequence(String backupJson, FinanceProvider financeProvider) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: Colors.greenAccent,
-          title: const Row(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          title: Row(
             children: [
-              Icon(Icons.cloud_download_rounded, color: Colors.blue),
-              SizedBox(width: 8),
-              Text('Cloud Backup Found!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+              const Icon(Icons.cloud_download_rounded, color: Color(0xFF10B981)),
+              const SizedBox(width: 12),
+              Text(
+                'Backup Found',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
             ],
           ),
-          content: const Text(
-            'A previous backup was found on Google Drive. Do you want to restore it and merge with your local device metrics?',
-            style: TextStyle(fontSize: 13, color: Colors.white),
+          content: Text(
+            'A previous backup was discovered in your Drive. Would you like to restore your history now?',
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+              height: 1.5,
+            ),
           ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Keep Local Only', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                // Even if skipped, we enable the backup toggle since login was successful
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('isCloudBackupEnabled', true);
+                setState(() => _isBackupEnabled = true);
+              },
+              child: Text(
+                'Skip',
+                style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w600),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () async {
@@ -71,28 +131,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 setState(() => _isBackupLoading = true);
 
                 try {
-                  // Write string dump back directly to Hive transactional layer boxes
+                  // Perform restoration
                   await HiveHelper.restoreJsonStringToDatabase(backupJson);
 
-                  // Forcefully refresh provider state nodes to refresh graphs instantly
+                  // Force provider to reload memory list from the new Hive entries
                   await financeProvider.loadTransactions();
 
-                  if (!mounted) return;
+                  // Enable backup status
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('isCloudBackupEnabled', true);
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Database Diagnostics Restored Perfectly.', style: TextStyle(color: Colors.white)),
-                      backgroundColor: Color(0xFF10B981),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                  if (mounted) {
+                    setState(() {
+                      _isBackupEnabled = true;
+                      _isBackupLoading = false;
+                    });
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('History restored successfully!'),
+                        backgroundColor: Color(0xFF10B981),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
                 } catch (e) {
-                  debugPrint("Restore action pipeline processing failed: $e");
-                } finally {
-                  setState(() => _isBackupLoading = false);
+                  debugPrint("Restore error: $e");
+                  if (mounted) setState(() => _isBackupLoading = false);
                 }
               },
-              child: const Text('Restore Data', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: const Text('Restore Now'),
             ),
           ],
         );
@@ -104,105 +172,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _handleBackupToggle(bool value, FinanceProvider financeProvider) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Start loading state and update UI
+    if (value == false) {
+      // User completely turns off the backup sync layout
+      await prefs.setBool('isCloudBackupEnabled', false);
+      setState(() {
+        _isBackupEnabled = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cloud Backup disabled.', style: TextStyle(color: Colors.white)),
+            backgroundColor: Colors.grey,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Start loading state for activation
     setState(() {
       _isBackupLoading = true;
     });
 
     try {
-      if (value == true) {
-        // 1. Trigger Google Sign-In Sequence flow safely
-        final account = await GoogleDriveService.signIn();
+      // 1. Trigger Google Sign-In Sequence flow safely
+      final account = await GoogleDriveService.signIn();
 
-        if (account != null) {
-          // --- 🔍 SCANNING FOR PRE-EXISTING CLOUD SNAPSHOTS ---
-          String? existingCloudData = await GoogleDriveService.downloadBackupData();
+      if (account != null) {
+        // --- 🔍 SCANNING FOR PRE-EXISTING CLOUD SNAPSHOTS ---
+        String? existingCloudData = await GoogleDriveService.downloadBackupData();
 
-          if (existingCloudData != null && existingCloudData.isNotEmpty) {
-            // User ko choice dein data restore karne ki pehle
+        if (existingCloudData != null && existingCloudData.isNotEmpty) {
+          // Pause and let user decide to restore or skip
+          if (mounted) {
+            setState(() => _isBackupLoading = false);
             _triggerRestoreSequence(existingCloudData, financeProvider);
           }
+          // Note: Automatic sync for THIS specific toggle action stops here to prevent overwriting
+          // Once user restores, they can use 'Sync Now' or toggle again.
+          return;
+        }
 
-          // Initial safe data push/sync setup on cloud
-          String localDataJson = await HiveHelper.getDatabaseAsJsonString();
-          bool success = await GoogleDriveService.backupData(localDataJson);
+        // 2. Initial safe data push/sync setup if no existing backup found
+        String localDataJson = await HiveHelper.getDatabaseAsJsonString();
+        bool success = await GoogleDriveService.backupData(localDataJson);
 
-          if (success) {
-            await prefs.setBool('isCloudBackupEnabled', true);
-            setState(() {
-              _isBackupEnabled = true;
-            });
-            if (mounted && existingCloudData == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Google Drive Backup Sync Successfully.', style: TextStyle(color: Colors.white)),
-                  backgroundColor: Color(0xFF10B981),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            }
-          } else {
-            // Upload sequence failure handling
-            setState(() {
-              _isBackupEnabled = false;
-            });
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Cloud storage upload routine failed.'),
-                  backgroundColor: Colors.amber,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            }
-          }
-        } else {
-          // User canceled the login window flow
+        if (success) {
+          await prefs.setBool('isCloudBackupEnabled', true);
           setState(() {
-            _isBackupEnabled = false;
+            _isBackupEnabled = true;
           });
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Google Sign-In Cancelled By User.', style: TextStyle(color: Colors.white)),
+                content: Text('Google Drive Backup Sync Successfully.', style: TextStyle(color: Colors.white)),
+                backgroundColor: Color(0xFF10B981),
                 behavior: SnackBarBehavior.floating,
               ),
             );
           }
         }
       } else {
-        // 2. User completely turns off the backup sync layout
-        await prefs.setBool('isCloudBackupEnabled', false);
+        // User canceled the login window flow
         setState(() {
           _isBackupEnabled = false;
         });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Cloud Backup is turned off.', style: TextStyle(color: Colors.red)),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
       }
     } catch (error) {
-      // Platform channel execution exceptions ko pakadne k liye wrapper trap
       debugPrint("CRITICAL BACKUP OPERATION ERROR: $error");
       setState(() {
         _isBackupEnabled = false;
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error Details: ${error.toString()}', style: TextStyle(color: Colors.white)),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
     } finally {
-      // Always stop the spinner regardless of victory or failure
       if (mounted) {
         setState(() {
           _isBackupLoading = false;
@@ -340,7 +382,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         Switch.adaptive(
                           value: isDark,
-                          activeTrackColor: const Color(0xFF10B981),
+                          activeTrackColor: const Color(0xFF10B981).withValues(alpha: 0.5),
+                          activeColor: const Color(0xFF10B981),
                           onChanged: (val) {
                             Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
                           },
@@ -370,18 +413,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ],
                           ),
                         ),
+                        if (_isBackupEnabled && !_isBackupLoading)
+                          IconButton(
+                            icon: const Icon(Icons.sync_rounded, size: 20, color: Color(0xFF10B981)),
+                            onPressed: () => _manualSync(financeProvider),
+                            tooltip: 'Sync Now',
+                          ),
                         _isBackupLoading
-                            ? const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ? Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           child: SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10B981)),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).primaryColor),
                           ),
                         )
                             : Switch.adaptive(
                           value: _isBackupEnabled,
-                          activeTrackColor: const Color(0xFF10B981),
+                          activeTrackColor: const Color(0xFF10B981).withValues(alpha: 0.5),
+                          activeColor: const Color(0xFF10B981),
                           onChanged: (val) => _handleBackupToggle(val, financeProvider),
                         ),
                       ],
@@ -402,8 +452,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildActionRowTile(
                     icon: Icons.info_outline_rounded,
                     iconColor: Colors.grey,
-                    title: 'FinTrack Version',
-                    trailingText: 'v1.0.0 Stable',
+                    title: 'Last Synced',
+                    trailingText: _lastSyncedText,
                     onTap: () {},
                   ),
                 ],
@@ -452,11 +502,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             CircleAvatar(
               radius: 15,
-              backgroundColor: iconColor.withValues(alpha: 0.1),
+              backgroundColor: iconColor.withValues(alpha: 0.15),
               child: Icon(icon, size: 15, color: iconColor),
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             Text(trailingText, style: TextStyle(color: Colors.grey.shade400, fontSize: 12, fontWeight: FontWeight.w500)),
             const SizedBox(width: 4),
             Icon(Icons.chevron_right_rounded, size: 16, color: Colors.grey.shade400),
@@ -467,36 +524,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _handleClearStorageAction(FinanceProvider provider) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (BuildContext ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Confirm Reset?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          content: const Text('Are you sure to remove all local data?'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          title: Text(
+            'Clear all data?',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          content: Text(
+            'This will permanently delete all your transaction records. This action cannot be undone.',
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+              height: 1.5,
+            ),
+          ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w600),
+              ),
             ),
-            TextButton(
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
               onPressed: () async {
                 Navigator.pop(ctx);
-
-                // Clear local Hive database entries completely using provider instance context
                 await provider.clearAllTransactions();
 
                 if (!mounted) return;
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Local storage metrics wiped cleanly!'),
-                    backgroundColor: Colors.redAccent,
+                    content: Text('All data has been cleared.', style: TextStyle(color: Colors.white)),
+                    backgroundColor: Color(0xFFEF4444),
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
               },
-              child: const Text('Wipe All', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
+              child: const Text('Delete Everything'),
             ),
           ],
         );

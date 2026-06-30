@@ -1,4 +1,5 @@
 import 'dart:convert'; // Yeh top par import lazmi add karein jsonEncode/jsonDecode k liye
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/transaction_model.dart';
 
@@ -41,16 +42,24 @@ class HiveHelper {
 
   // 4. Backup se aane wale JSON ko wapas Hive mein save karne ka function
   static Future<void> restoreJsonStringToDatabase(String jsonString) async {
-    final List<dynamic> decodedList = jsonDecode(jsonString);
-    final box = getTransactionBox();
+    try {
+      final List<dynamic> decodedList = jsonDecode(jsonString);
+      final box = getTransactionBox();
 
-    // Pehle local database khali karein taqe fresh backup data aaye aur duplicate na ho
-    await box.clear();
+      // Pehle local database khali karein taqe fresh backup data aaye aur duplicate na ho
+      await box.clear();
 
-    // Wapas objects bana kar save karein
-    for (var item in decodedList) {
-      final txn = Transaction.fromMap(item as Map<String, dynamic>);
-      await box.put(txn.id, txn); // id ko key bana kar save karein taqe update asani se ho sake
+      // Wapas objects bana kar save karein
+      for (var item in decodedList) {
+        if (item is Map<String, dynamic>) {
+          final txn = Transaction.fromMap(item);
+          await box.put(txn.id, txn);
+        }
+      }
+      debugPrint("Hive Restoration Complete: ${decodedList.length} items restored.");
+    } catch (e) {
+      debugPrint("Hive Restoration Error: $e");
+      rethrow;
     }
   }
 }

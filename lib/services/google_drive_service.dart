@@ -13,7 +13,7 @@ class GoogleDriveService {
     if (!_initialized) {
       // Android 'serverClientId must be provided' error ko fix karne k liye aapki id yahan inject kar di hai
       await sign_in.GoogleSignIn.instance.initialize(
-        serverClientId: '543940238158-s5nor61ovtjev6gqve84ah7ni9fsdtdo.apps.googleusercontent.com',
+        serverClientId: '543940238158-rnj79a5nvqvocm0j8r74figv0ldq7eum.apps.googleusercontent.com',
       );
       _initialized = true;
 
@@ -28,9 +28,24 @@ class GoogleDriveService {
     }
   }
 
+  // Silent restore of existing session (No UI)
+  static Future<sign_in.GoogleSignInAccount?> restoreSession() async {
+    try {
+      await _ensureInitialized();
+      _currentUser = await sign_in.GoogleSignIn.instance.attemptLightweightAuthentication();
+      return _currentUser;
+    } catch (e) {
+      return null;
+    }
+  }
+
   static Future<sign_in.GoogleSignInAccount?> signIn() async {
     try {
       await _ensureInitialized();
+
+      // Check for existing session first
+      final silentAccount = await restoreSession();
+      if (silentAccount != null) return silentAccount;
 
       // Interactive sign-in using your explicit scope configurations
       _currentUser = await sign_in.GoogleSignIn.instance.authenticate(
@@ -50,7 +65,7 @@ class GoogleDriveService {
 
       if (_currentUser == null) {
         // Attempt lightweight authentication to restore previous session
-        _currentUser = await sign_in.GoogleSignIn.instance.attemptLightweightAuthentication();
+        _currentUser = await restoreSession();
         if (_currentUser == null) {
           _currentUser = await signIn();
           if (_currentUser == null) return false;
@@ -109,7 +124,7 @@ class GoogleDriveService {
       await _ensureInitialized();
 
       if (_currentUser == null) {
-        _currentUser = await sign_in.GoogleSignIn.instance.attemptLightweightAuthentication();
+        _currentUser = await restoreSession();
         if (_currentUser == null) {
           _currentUser = await signIn();
           if (_currentUser == null) return null;
