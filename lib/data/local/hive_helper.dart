@@ -49,14 +49,19 @@ class HiveHelper {
       // Pehle local database khali karein taqe fresh backup data aaye aur duplicate na ho
       await box.clear();
 
+      int count = 0;
       // Wapas objects bana kar save karein
       for (var item in decodedList) {
-        if (item is Map<String, dynamic>) {
-          final txn = Transaction.fromMap(item);
+        try {
+          final Map<String, dynamic> mappedItem = Map<String, dynamic>.from(item as Map);
+          final txn = Transaction.fromMap(mappedItem);
           await box.put(txn.id, txn);
+          count++;
+        } catch (e) {
+          debugPrint("Restore Item Error: $e");
         }
       }
-      debugPrint("Hive Restoration Complete: ${decodedList.length} items restored.");
+      debugPrint("Hive Restoration Complete: $count items restored.");
     } catch (e) {
       debugPrint("Hive Restoration Error: $e");
       rethrow;
